@@ -1,11 +1,11 @@
-use std::sync::Arc;
+use std::fmt::Debug;
 use std::thread;
 
 pub fn parallel_computation<T, R, F>(data: Vec<T>, func: F, threshold: usize) -> Vec<R>
     where
-        T: Send + Sync + Clone + 'static,
+        T: Send + Debug + Clone + 'static,
         R: Send + 'static,
-        F: Fn(T) -> R + Send + Sync + 'static,
+        F: Fn(T) -> R + Send + Clone + 'static,
 {
     let data_len = data.len();
 
@@ -13,37 +13,28 @@ pub fn parallel_computation<T, R, F>(data: Vec<T>, func: F, threshold: usize) ->
         return data.into_iter().map(func).collect();
     }
 
-    let data = Arc::new(data);
-    let func = Arc::new(func);
-
-    let num_threads = 12;
+    let num_threads = 4;
     let chunk_size = data_len / num_threads;
 
     let mut handles = vec![];
+    let mut start = 0;
+    let mut remainder = data_len % num_threads;
+    for _ in 0..num_threads {
+        let mut end = start + chunk_size;
+        if remainder > 0 {
+            end += 1;
+            remainder -= 1;
+        }
 
-    for i in 0..num_threads {
-        let data_clone = Arc::clone(&data);
-        let func_clone = Arc::clone(&func);
+        let chunk: Vec<T> = data[start..end].to_vec();
+        let func_clone = func.clone();
 
         let handle = thread::spawn(move || {
-            let start = i * chunk_size;
-            let end = if i == num_threads - 1 {
-                data_len
-            } else {
-                start + chunk_size
-            };
-
-            let mut result = Vec::with_capacity(end - start);
-
-            for j in start..end {
-                let item = data_clone[j].clone();
-                result.push((func_clone)(item));
-            }
-
-            result
+            chunk.into_iter().map(func_clone).collect::<Vec<R>>()
         });
-
         handles.push(handle);
+
+        start = end;
     }
 
     let mut result = Vec::with_capacity(data_len);

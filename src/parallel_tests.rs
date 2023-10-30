@@ -6,7 +6,7 @@ mod tests {
     #[test]
     fn test_small_data() {
         let data: Vec<u32> = vec![1, 2, 3, 4, 5];
-        let result = parallel_computation(data, |x| x * 2, 1000);
+        let result = parallel_computation(data, |x| x * 2, 5);
         assert_eq!(result, vec![2, 4, 6, 8, 10]);
     }
 
